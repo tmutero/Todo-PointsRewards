@@ -11,19 +11,36 @@ from app.services.user import UserService
 router = APIRouter(tags=["User"], prefix="/user")
 
 
+
+
+
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_data: UserIn,
     session: AsyncSession = Depends(get_session)
 ):
+    
+    
     return await UserService.register_user(user_data, session)
 
+
+
+@router.post("/initialise", status_code=status.HTTP_200_OK)
+async def token(
+    session: AsyncSession = Depends(get_session)
+) -> Token:
+    
+    return await UserService.bootstrap(session)
 
 @router.post("/token", status_code=status.HTTP_200_OK)
 async def token(
     form_data: UserLogin,
     session: AsyncSession = Depends(get_session)
 ) -> Token:
+    
+    await UserService.bootstrap(session)
     return await UserService.login(form_data, session)
 
 

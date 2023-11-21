@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     DATE_FORMAT: str
+    FIRST_SUPERUSER_PASSWORD: str
+    FIRST_SUPERUSER: str
+    FIRST_SUPERUSER_NAME :str
 
     class Config:
         env_file = "./.env"

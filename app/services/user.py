@@ -3,6 +3,8 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 
 from datetime import timedelta
+from app.schemas.role import RoleIn, RoleOut
+from app.schemas.permission import PermissionIn, PermissionOut
 
 from jose import JWTError, jwt
 from loguru import logger
@@ -19,6 +21,9 @@ from app.services.permission import PermissionService
 from app.services.role import RoleService
 
 
+from app.services.role import RoleService
+from app.daos import role
+from app.daos import permission
 
 
 class UserService:
@@ -43,7 +48,6 @@ class UserService:
     @staticmethod
     async def authenticate_user(session: AsyncSession, form_data: UserLogin) -> UserModel | bool:
         _user = await user.UserDao(session).get_by_email(form_data.username)
-       
 
         if not _user or not UtilsService.verify_password(form_data.password, _user.password):
             return False
@@ -51,7 +55,7 @@ class UserService:
 
     @staticmethod
     async def user_email_exists(session: AsyncSession, email: str) -> UserModel | None:
-        
+
         _user = await user.UserDao(session).get_by_email(email)
         return _user if _user else None
 
@@ -63,20 +67,20 @@ class UserService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect email or password",
             )
-            
-        roles  = []
-    
+
+        roles = []
+
         permissions = await PermissionService.get_permissions_by_user_id(_user.id, session)
-        
-    
+
         for x in permissions:
             _role = await RoleService.get_role_by_id(x.role_id, session)
             roles.append(_role.name)
-  
 
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = UtilsService.create_access_token(data={"sub":_user.email,"email": _user.email,"lastname": _user.first_name, "firstname": _user.last_name,"id": _user.id,"roles": roles}, expires_delta=access_token_expires)
-        
+        access_token_expires = timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = UtilsService.create_access_token(data={"sub": _user.email, "email": _user.email, "lastname": _user.first_name,
+                                                        "firstname": _user.last_name, "id": _user.id, "roles": roles}, expires_delta=access_token_expires)
+
         token_data = {
             "access_token": access_token,
             "token_type": "Bearer",
@@ -94,7 +98,8 @@ class UserService:
             headers={"WWW-Authenticate": "Bearer"},
         )
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            payload = jwt.decode(token, settings.SECRET_KEY,
+                                 algorithms=[settings.ALGORITHM])
             email: str = payload.get("sub")
             if not email:
                 raise credentials_exception
@@ -130,7 +135,8 @@ class UserService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect old password!!!",
             )
-        current_user.password = UtilsService.get_password_hash(password_data.new_password)
+        current_user.password = UtilsService.get_password_hash(
+            password_data.new_password)
         session.add(current_user)
         await session.commit()
         return JSONResponse(
@@ -158,5 +164,37 @@ class UserService:
             )
         return JSONResponse(
             content={"message": "User deleted successfully!!!"},
+            status_code=status.HTTP_200_OK,
+        )
+
+    @staticmethod
+    async def bootstrap(db: AsyncSession):
+        user_exist = await UserService.user_email_exists(db, "admin@gmail.com")
+        if not user_exist:
+
+            user_in = {
+                "email": "admin@gmail.com",
+                "first_name": "Admin",
+                "last_name": "Admin",
+                "password": UtilsService.get_password_hash("Admin")
+            }
+
+            user_obj = await user.UserDao(db).create(user_in)
+
+            role_data = {
+                "name": "Admin"
+            }
+
+            new_role = await role.RoleDao(db).create(role_data)
+
+            permission_in = {
+                "user_id": user_obj.id,
+                "role_id": new_role.id
+            }
+
+            permission_ = await permission.PermissionDao(db).create(permission_in)
+
+        return JSONResponse(
+            content={"message": "Initialized successfully!!!"},
             status_code=status.HTTP_200_OK,
         )

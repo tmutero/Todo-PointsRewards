@@ -44,25 +44,6 @@ async def delete_permission_by_id(
     return await PermissionService.delete_permission_by_id(permission_id, session)
 
 
-
-@router.post("/uploadfile/")
-async def create_upload_file(file: UploadFile):
-    upload_dir = os.path.join(os.getcwd(), "uploads")
-    # Create the upload directory if it doesn't exist
-    if not os.path.exists(upload_dir):
-        os.makedirs(upload_dir)
-
-    # get the destination path
-    dest = os.path.join(upload_dir, file.filename)
-    print(dest)
-
-    # copy the file contents
-    with open(dest, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    return {"filename": file.filename}
-
-
 def get_file_info(path: str, filename: str) -> Dict[str, str]:
     """
     Get information about a file
@@ -101,7 +82,7 @@ async def get_files_tree() -> Dict[str, List[Dict[str, str]]]:
     return files_tree
 
 @router.post("/files/")
-async def create_upload_file(file: UploadFile, permission_data: PermissionIn):
+async def create_upload_file(file: UploadFile):
     try:
         # Create a directory named with today's date
         date_today = datetime.now().strftime('%Y-%m-%d')
